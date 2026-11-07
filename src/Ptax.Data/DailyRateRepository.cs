@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ptax.Data;
 
-public class DailyRateRepository(PtaxDbContext context) : IDailyRateRepository
+public class DailyRateRepository(PtaxDbContext context) : IDailyRateRepository, IDailyRateReader
 {
     public async Task UpsertAsync(IReadOnlyCollection<DailyRate> rates, CancellationToken cancellationToken = default)
     {
@@ -27,4 +27,18 @@ public class DailyRateRepository(PtaxDbContext context) : IDailyRateRepository
 
         await transaction.CommitAsync(cancellationToken);
     }
+
+    public async Task<DailyRate?> GetLatestOnOrBeforeAsync(string currency, DateOnly date, CancellationToken cancellationToken = default)
+        => await context.DailyRates
+            .AsNoTracking()
+            .Where(rate => rate.Currency == currency && rate.Date <= date)
+            .OrderByDescending(rate => rate.Date)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<DailyRate>> GetRangeAsync(string currency, DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
+        => await context.DailyRates
+            .AsNoTracking()
+            .Where(rate => rate.Currency == currency && rate.Date >= from && rate.Date <= to)
+            .OrderBy(rate => rate.Date)
+            .ToListAsync(cancellationToken);
 }
