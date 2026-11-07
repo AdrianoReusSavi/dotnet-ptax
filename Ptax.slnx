@@ -1,10 +1,12 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Ptax.Api/Ptax.Api.csproj" />
     <Project Path="src/Ptax.Bcb/Ptax.Bcb.csproj" />
     <Project Path="src/Ptax.Data/Ptax.Data.csproj" />
     <Project Path="src/Ptax.Worker/Ptax.Worker.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Ptax.Api.Tests/Ptax.Api.Tests.csproj" />
     <Project Path="tests/Ptax.Bcb.Tests/Ptax.Bcb.Tests.csproj" />
     <Project Path="tests/Ptax.Data.Tests/Ptax.Data.Tests.csproj" />
     <Project Path="tests/Ptax.Worker.Tests/Ptax.Worker.Tests.csproj" />
