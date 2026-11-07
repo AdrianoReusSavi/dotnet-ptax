@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\Ptax.Data\Ptax.Data.csproj" />
@@ -8,6 +8,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>9dfe198a-ffae-4685-b95c-741b522ca4d9</UserSecretsId>
   </PropertyGroup>
 
 </Project>
