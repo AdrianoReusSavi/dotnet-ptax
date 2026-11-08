@@ -141,4 +141,34 @@ public class RateEndpointsTests(PtaxApiFactory factory) : IClassFixture<PtaxApiF
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
+
+    [Fact]
+    public async Task GetRate_Second_Request_Is_Served_From_Cache()
+    {
+        await factory.SeedAsync(
+            CreateRate("GGG", new DateOnly(2026, 10, 30), 4m));
+
+        var response = await _client.GetAsync("/rates/GGG?date=2026-10-30");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var rate = await response.Content.ReadFromJsonAsync<RateResponse>();
+
+        Assert.NotNull(rate);
+        Assert.Equal("GGG", rate.Currency);
+        Assert.Equal(4m, rate.BuyRate);
+
+        await factory.SeedAsync(
+            CreateRate("GGG", new DateOnly(2026, 10, 30), 9m));
+        
+        var cachedResponse = await _client.GetAsync("/rates/GGG?date=2026-10-30");
+
+        Assert.Equal(HttpStatusCode.OK, cachedResponse.StatusCode);
+
+        var cachedRate = await cachedResponse.Content.ReadFromJsonAsync<RateResponse>();
+
+        Assert.NotNull(cachedRate);
+        Assert.Equal("GGG", cachedRate.Currency);
+        Assert.Equal(4m, cachedRate.BuyRate);
+    }
 }
