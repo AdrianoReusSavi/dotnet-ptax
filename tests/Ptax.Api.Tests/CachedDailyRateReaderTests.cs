@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
+using Polly;
 using Ptax.Api.Tests.Fakes;
 using Ptax.Data;
 
@@ -19,7 +21,10 @@ public class CachedDailyRateReaderTests
     };
 
     private static CachedDailyRateReader CreateReader(FakeDailyRateReader inner, FakeDistributedCache cache)
-        => new(inner, cache, NullLogger<CachedDailyRateReader>.Instance);
+        => new(inner, cache, ResiliencePipeline.Empty, NullLogger<CachedDailyRateReader>.Instance);
+
+    private static ResiliencePipeline CreateCircuitBreaker(TimeProvider timeProvider)
+        => new ResiliencePipelineBuilder { TimeProvider = timeProvider }.AddCacheCircuitBreaker().Build();
 
     [Fact]
     public async Task Second_Call_Is_Served_From_Cache()
@@ -121,5 +126,74 @@ public class CachedDailyRateReaderTests
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             reader.GetLatestOnOrBeforeAsync("USD", Date, cts.Token));
+    }
+
+    [Fact]
+    public async Task Repeated_Cache_Failures_Skip_The_Cache()
+    {
+        var inner = new FakeDailyRateReader(CreateRate(Date));
+        var cache = new FakeDistributedCache { ExceptionToThrow = new InvalidOperationException() };
+        var reader = new CachedDailyRateReader(inner, cache, CreateCircuitBreaker(new FakeTimeProvider()), NullLogger<CachedDailyRateReader>.Instance);
+
+        await reader.GetLatestOnOrBeforeAsync("USD", Date);
+
+        var callsAfterFirst = cache.Calls;
+
+        var rate = await reader.GetLatestOnOrBeforeAsync("USD", Date);
+
+        Assert.Equal(2, callsAfterFirst);
+        Assert.Equal(2, cache.Calls);
+        Assert.NotNull(rate);
+        Assert.Equal(5.1m, rate.BuyRate);
+        Assert.Equal(1.1m, rate.SellParity);
+        Assert.Equal(Date, rate.Date);
+    }
+
+    [Fact]
+    public async Task Cache_Is_Tried_Again_After_Break_Duration()
+    {
+        var inner = new FakeDailyRateReader(CreateRate(Date));
+        var cache = new FakeDistributedCache { ExceptionToThrow = new InvalidOperationException() };
+        var timeProvider = new FakeTimeProvider();
+        var reader = new CachedDailyRateReader(inner, cache, CreateCircuitBreaker(timeProvider), NullLogger<CachedDailyRateReader>.Instance);
+
+        await reader.GetLatestOnOrBeforeAsync("USD", Date);
+
+        cache.ExceptionToThrow = null;
+
+        timeProvider.Advance(TimeSpan.FromSeconds(31));
+
+        var rate = await reader.GetLatestOnOrBeforeAsync("USD", Date);
+
+        Assert.Contains("rate:USD:2026-11-03", cache.Entries);
+        Assert.Equal(2, inner.Calls);
+        Assert.NotNull(rate);
+        Assert.Equal(5.1m, rate.BuyRate);
+        Assert.Equal(1.1m, rate.SellParity);
+        Assert.Equal(Date, rate.Date);
+    }
+
+    [Fact]
+    public async Task Cache_Is_Still_Skipped_Before_Break_Duration()
+    {
+        var inner = new FakeDailyRateReader(CreateRate(Date));
+        var cache = new FakeDistributedCache { ExceptionToThrow = new InvalidOperationException() };
+        var timeProvider = new FakeTimeProvider();
+        var reader = new CachedDailyRateReader(inner, cache, CreateCircuitBreaker(timeProvider), NullLogger<CachedDailyRateReader>.Instance);
+
+        await reader.GetLatestOnOrBeforeAsync("USD", Date);
+
+        cache.ExceptionToThrow = null;
+
+        timeProvider.Advance(TimeSpan.FromSeconds(29));
+
+        var rate = await reader.GetLatestOnOrBeforeAsync("USD", Date);
+
+        Assert.Empty(cache.Entries);
+        Assert.Equal(2, inner.Calls);
+        Assert.NotNull(rate);
+        Assert.Equal(5.1m, rate.BuyRate);
+        Assert.Equal(1.1m, rate.SellParity);
+        Assert.Equal(Date, rate.Date);
     }
 }

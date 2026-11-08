@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Distributed;
+using Polly;
+using Polly.CircuitBreaker;
 using Ptax.Data;
 
 namespace Ptax.Api;
@@ -7,6 +9,7 @@ namespace Ptax.Api;
 public class CachedDailyRateReader(
     IDailyRateReader inner,
     IDistributedCache cache,
+    ResiliencePipeline cachePipeline,
     ILogger<CachedDailyRateReader> logger) : IDailyRateReader
 {
     private static readonly TimeSpan ExactDateExpiration = TimeSpan.FromDays(1);
@@ -18,10 +21,14 @@ public class CachedDailyRateReader(
 
         try
         {
-            var cached = await cache.GetStringAsync(key, cancellationToken);
+            var cached = await cachePipeline.ExecuteAsync(async token =>
+                await cache.GetStringAsync(key, token), cancellationToken);
 
             if (cached is not null)
                 return JsonSerializer.Deserialize<DailyRate>(cached);
+        }
+        catch (BrokenCircuitException)
+        {
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
@@ -36,8 +43,12 @@ public class CachedDailyRateReader(
             {
                 var expirationTime = rate.Date == date ? ExactDateExpiration : FallbackExpiration;
 
-                await cache.SetStringAsync(key, JsonSerializer.Serialize(rate),
-                    new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = expirationTime }, cancellationToken);
+                await cachePipeline.ExecuteAsync(async token =>
+                    await cache.SetStringAsync(key, JsonSerializer.Serialize(rate),
+                        new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = expirationTime }, token), cancellationToken);
+            }
+            catch (BrokenCircuitException)
+            {
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {

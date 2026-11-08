@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
+using Polly;
+using Polly.Registry;
 using Ptax.Api;
 using Ptax.Data;
 using StackExchange.Redis;
@@ -25,9 +27,12 @@ builder.Services.AddStackExchangeRedisCache(options =>
 
 builder.Services.AddScoped<DailyRateRepository>();
 
+builder.Services.AddResiliencePipeline(CacheCircuitBreaker.PipelineName, pipeline => pipeline.AddCacheCircuitBreaker());
+
 builder.Services.AddScoped<IDailyRateReader>(services => new CachedDailyRateReader(
     services.GetRequiredService<DailyRateRepository>(),
     services.GetRequiredService<IDistributedCache>(),
+    services.GetRequiredService<ResiliencePipelineProvider<string>>().GetPipeline(CacheCircuitBreaker.PipelineName),
     services.GetRequiredService<ILogger<CachedDailyRateReader>>()));
 
 builder.Services.AddSingleton(TimeProvider.System);

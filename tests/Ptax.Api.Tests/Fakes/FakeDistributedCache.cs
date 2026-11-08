@@ -6,10 +6,13 @@ public class FakeDistributedCache : IDistributedCache
 {
     public Dictionary<string, byte[]> Entries { get; } = [];
     public Dictionary<string, DistributedCacheEntryOptions> Options { get; } = [];
-    public Exception? ExceptionToThrow { get; init; }
+    public Exception? ExceptionToThrow { get; set; }
+    public int Calls { get; private set; }
 
     public Task<byte[]?> GetAsync(string key, CancellationToken token = default)
     {
+        Calls++;
+
         token.ThrowIfCancellationRequested();
 
         if (ExceptionToThrow is not null)
@@ -20,6 +23,8 @@ public class FakeDistributedCache : IDistributedCache
 
     public Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default)
     {
+        Calls++;
+
         token.ThrowIfCancellationRequested();
 
         if (ExceptionToThrow is not null)
