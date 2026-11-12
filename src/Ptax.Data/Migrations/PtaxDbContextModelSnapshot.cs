@@ -57,6 +57,41 @@ namespace Ptax.Data.Migrations
 
                     b.ToTable("daily_rates", (string)null);
                 });
+
+            modelBuilder.Entity("Ptax.Data.RateAlert", b =>
+                {
+                    b.Property<string>("Currency")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<decimal>("ChangePercent")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("numeric(9,2)")
+                        .HasColumnName("change_percent");
+
+                    b.Property<DateOnly>("PreviousDate")
+                        .HasColumnType("date")
+                        .HasColumnName("previous_date");
+
+                    b.Property<decimal>("PreviousSellRate")
+                        .HasPrecision(18, 5)
+                        .HasColumnType("numeric(18,5)")
+                        .HasColumnName("previous_sell_rate");
+
+                    b.Property<decimal>("SellRate")
+                        .HasPrecision(18, 5)
+                        .HasColumnType("numeric(18,5)")
+                        .HasColumnName("sell_rate");
+
+                    b.HasKey("Currency", "Date");
+
+                    b.ToTable("rate_alerts", (string)null);
+                });
 #pragma warning restore 612, 618
         }
     }

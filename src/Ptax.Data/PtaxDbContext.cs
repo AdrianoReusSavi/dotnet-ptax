@@ -11,4 +11,5 @@ public class PtaxDbContext(DbContextOptions<PtaxDbContext> options) : DbContext(
     }
 
     public DbSet<DailyRate> DailyRates { get; set; }
+    public DbSet<RateAlert> RateAlerts { get; set; }
 }
