@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ptax.Data;
 
-public class RateAlertRepository(PtaxDbContext context) : IRateAlertRepository
+public class RateAlertRepository(PtaxDbContext context) : IRateAlertRepository, IRateAlertReader
 {
     public async Task<IReadOnlyList<RateAlert>> AddNewAsync(IReadOnlyCollection<RateAlert> alerts, CancellationToken cancellationToken = default)
     {
@@ -29,5 +29,20 @@ public class RateAlertRepository(PtaxDbContext context) : IRateAlertRepository
         await transaction.CommitAsync(cancellationToken);
 
         return added;
+    }
+
+    public async Task<IReadOnlyList<RateAlert>> GetAlertsAsync(DateOnly from, DateOnly to, string? currency, CancellationToken cancellationToken = default)
+    {
+        var query = context.RateAlerts
+            .AsNoTracking()
+            .Where(alert => alert.Date >= from && alert.Date <= to);
+
+        if (currency is not null)
+            query = query.Where(alert => alert.Currency == currency);
+
+        return await query
+            .OrderByDescending(alert => alert.Date)
+            .ThenBy(alert => alert.Currency)
+            .ToListAsync(cancellationToken);
     }
 }
