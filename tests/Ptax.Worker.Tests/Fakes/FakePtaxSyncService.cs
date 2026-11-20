@@ -6,11 +6,15 @@ public class FakePtaxSyncService : IPtaxSyncService
 
     public Dictionary<string, Exception> Failures { get; } = [];
 
+    public List<string> Events { get; set; } = [];
+
     public Task<int> SyncAsync(string currency, DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         Calls.Add((currency, from, to));
+
+        Events.Add($"sync:{currency}");
 
         if (Failures.TryGetValue(currency, out var exception))
             throw exception;

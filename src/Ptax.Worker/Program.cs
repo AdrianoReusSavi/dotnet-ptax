@@ -10,13 +10,19 @@ builder.Services.AddOptions<PtaxSyncOptions>()
         "PtaxSync: Currencies must list at least one currency.")
     .Validate(options => options.Currencies.All(currency => currency.Length == 3 && currency.All(char.IsAsciiLetterUpper)),
         "PtaxSync: Currencies must be 3-letter uppercase codes.")
+    .Validate(options => options.AlertThresholdPercent > 0,
+        "PtaxSync: AlertThresholdPercent must be greater than zero.")
     .ValidateOnStart();
 
 builder.Services.AddDbContext<PtaxDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Ptax")));
 
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddScoped<IDailyRateRepository, DailyRateRepository>();
+builder.Services.AddScoped<DailyRateRepository>();
+builder.Services.AddScoped<IDailyRateRepository>(sp => sp.GetRequiredService<DailyRateRepository>());
+builder.Services.AddScoped<IDailyRateReader>(sp => sp.GetRequiredService<DailyRateRepository>());
+builder.Services.AddScoped<IRateAlertRepository, RateAlertRepository>();
+builder.Services.AddScoped<IRateAlertService, RateAlertService>();
 builder.Services.AddScoped<IPtaxSyncService, PtaxSyncService>();
 builder.Services.AddPtaxClient();
 builder.Services.AddHostedService<PtaxSyncWorker>();

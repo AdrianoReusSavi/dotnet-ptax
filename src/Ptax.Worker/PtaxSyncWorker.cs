@@ -36,6 +36,16 @@ public class PtaxSyncWorker(
 
                 logger.LogInformation("Synced {Currency}: {Saved} rates from {From} to {To}",
                     currency, saved, from, to);
+
+                var alertService = scope.ServiceProvider.GetRequiredService<IRateAlertService>();
+
+                var alerts = await alertService.CheckAsync(currency, from, to, options.Value.AlertThresholdPercent, cancellationToken);
+
+                foreach (var alert in alerts)
+                {
+                    logger.LogWarning("{Currency} changed {ChangePercent}% from {PreviousDate} ({PreviousSellRate}) to {Date} ({SellRate})",
+                        alert.Currency, alert.ChangePercent, alert.PreviousDate, alert.PreviousSellRate, alert.Date, alert.SellRate);
+                }
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
