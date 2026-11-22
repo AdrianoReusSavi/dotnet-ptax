@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=ptax
+      - POSTGRES_PASSWORD=ptax
+      - POSTGRES_DB=ptax
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ptax -d ptax"]
+      interval: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  migrate:
+    build:
+      context: .
+      target: migrate
+    environment:
+      - ConnectionStrings__Ptax=Host=postgres;Database=ptax;Username=ptax;Password=ptax;Gss Encryption Mode=Disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+
+  worker:
+    build:
+      context: .
+      target: worker
+    environment:
+      - ConnectionStrings__Ptax=Host=postgres;Database=ptax;Username=ptax;Password=ptax;Gss Encryption Mode=Disable
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  api:
+    build:
+      context: .
+      target: api
+    ports:
+      - "8080:8080"
+    environment:
+      - ConnectionStrings__Ptax=Host=postgres;Database=ptax;Username=ptax;Password=ptax;Gss Encryption Mode=Disable
+      - ConnectionStrings__Redis=redis:6379
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+
+volumes:
+  postgres_data:
