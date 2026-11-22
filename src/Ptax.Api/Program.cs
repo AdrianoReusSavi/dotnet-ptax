@@ -37,6 +37,8 @@ builder.Services.AddScoped<IDailyRateReader>(services => new CachedDailyRateRead
 
 builder.Services.AddSingleton(TimeProvider.System);
 
+builder.Services.AddScoped<IRateAlertReader, RateAlertRepository>();
+
 var app = builder.Build();
 
 app.UseExceptionHandler(new ExceptionHandlerOptions
@@ -48,5 +50,6 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
 
 app.UseStatusCodePages();
 app.MapRateEndpoints();
+app.MapAlertEndpoints();
 
 app.Run();

@@ -47,6 +47,17 @@ public sealed class PtaxApiFactory : WebApplicationFactory<Program>, IAsyncLifet
         await new DailyRateRepository(context).UpsertAsync(rates);
     }
 
+    public async Task SeedAlertsAsync(params RateAlert[] alerts)
+    {
+        using var scope = Services.CreateScope();
+
+        var context = scope.ServiceProvider.GetRequiredService<PtaxDbContext>();
+
+        context.AddRange(alerts);
+
+        await context.SaveChangesAsync();
+    }
+
     async Task IAsyncLifetime.DisposeAsync()
     {
         await _container.DisposeAsync();
